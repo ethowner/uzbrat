@@ -1,15 +1,18 @@
 package com.example.myapp;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.provider.Settings;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.format.Formatter;
 import android.util.Log;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -28,57 +31,38 @@ public class DeviceInfo {
         return version;
     }
 
-    @SuppressLint("HardwareIds")
-    public static String getSimInfo(Context context) {
+    public static String getDeviceId(Context context) {
+        String id = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
+        Log.d(TAG, "Device ID: " + id);
+        return id;
+    }
+
+    public static String[] getPhoneNumbers(Context context) {
+        List<String> numbers = new ArrayList<>();
         try {
+            SubscriptionManager sm = (SubscriptionManager) context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
             TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-            if (tm != null) {
-                String operator = tm.getSimOperatorName();
-                @SuppressLint("MissingPermission") String number = tm.getLine1Number();
-                String simInfo = operator + " - " + (number != null ? number : "Номер недоступен");
-                Log.d(TAG, "SIM info: " + simInfo);
-                return simInfo;
+            if (sm != null && tm != null) {
+                List<SubscriptionInfo> infos = sm.getActiveSubscriptionInfoList();
+                if (infos != null) {
+                    for (SubscriptionInfo info : infos) {
+                        TelephonyManager tmForSub = tm.createForSubscriptionId(info.getSubscriptionId());
+                        String num = tmForSub.getLine1Number();
+                        if (num != null && !num.isEmpty()) {
+                            numbers.add(num);
+                        }
+                    }
+                }
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Error getting SIM info: " + e.getMessage());
+        } catch (SecurityException e) {
+            Log.e(TAG, "No permission to read phone numbers: " + e.getMessage());
         }
-        return "Информация о SIM-карте недоступна";
-    }
-
-    @SuppressLint("HardwareIds")
-    public static String getOperatorName(Context context) {
-        try {
-            TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-            if (tm != null) {
-                String name = tm.getSimOperatorName();
-                String operatorName = name.isEmpty() ? "Неизвестный оператор" : name;
-                Log.d(TAG, "Operator name: " + operatorName);
-                return operatorName;
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error getting operator name: " + e.getMessage());
+        if (numbers.isEmpty()) {
+            numbers.add("Неизвестно");
         }
-        return "Неизвестный оператор";
+        return numbers.toArray(new String[0]);
     }
 
-    public static String getUssdCodeForOperator(String operatorName) {
-        if (operatorName == null) return null;
-
-        String lowerName = operatorName.toLowerCase();
-        String ussdCode;
-
-        if (lowerName.contains("beeline")) ussdCode = "*102#";
-        else if (lowerName.contains("ucell")) ussdCode = "*100#";
-        else if (lowerName.contains("mobiuz")) ussdCode = "*100#";
-        else if (lowerName.contains("perfectum")) ussdCode = "*100#";
-        else if (lowerName.contains("uztelecom")) ussdCode = "*100#";
-        else if (lowerName.contains("uzmobile")) ussdCode = "*100#";
-        else if (lowerName.contains("ums")) ussdCode = "*888#";
-        else ussdCode = "*100#"; // По умолчанию
-
-        Log.d(TAG, "USSD code for operator " + operatorName + ": " + ussdCode);
-        return ussdCode;
-    }
 
     public static String getIPAddress(Context context) {
         try {
