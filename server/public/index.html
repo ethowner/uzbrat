@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Device Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { padding: 8px 12px; border: 1px solid #ccc; }
+        th { background: #f0f0f0; }
+        .online { color: green; }
+        .offline { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Connected Devices</h1>
+    <table id="devices">
+        <thead>
+            <tr>
+                <th>Model</th>
+                <th>Android</th>
+                <th>IP Address</th>
+                <th>Phones</th>
+                <th>Status</th>
+                <th>Последнее обновление</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <script>
+        async function loadDevices() {
+            const res = await fetch('/api/devices');
+            const devices = await res.json();
+            const tbody = document.querySelector('#devices tbody');
+            tbody.innerHTML = '';
+            devices.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${d.model}</td>
+                    <td>${d.android}</td>
+                    <td>${d.ip}</td>
+                    <td>${(d.phones || []).join(', ')}</td>
+                    <td class="${d.online ? 'online' : 'offline'}">${d.online ? 'Онлайн' : 'Оффлайн'}</td>
+                    <td>${new Date(d.timestamp).toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        loadDevices();
+        setInterval(loadDevices, 5000);
+    </script>
+</body>
+</html>
